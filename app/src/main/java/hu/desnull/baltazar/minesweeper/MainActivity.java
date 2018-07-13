@@ -48,15 +48,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             row.setOrientation(LinearLayout.HORIZONTAL);
             for (int x = 0; x < width; ++x) {
                 Button button = new Button(context);
-                button.setTag(R.string.tileid, coordsToId(x, y));
-                button.setTag(R.string.ismarked, false);
-                button.setTag(R.string.isseen, false);
+                ButtonData buttonData = new ButtonData(coordsToId(x, y));
                 if (new Random().nextDouble() < mineProb) {
                     numMines++;
-                    button.setTag(R.string.ismine, true);
+                    buttonData.isMine = true;
                 } else {
-                    button.setTag(R.string.ismine, false);
+                    buttonData.isMine = false;
                 }
+                button.setTag(R.string.buttonData, buttonData);
                 button.setOnClickListener(this);
                 button.setOnLongClickListener(this);
                 button.setBackgroundColor(Color.GRAY);
@@ -72,8 +71,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         board.setDividerDrawable(getResources().getDrawable(R.drawable.divider));
         board.setBackgroundColor(Color.DKGRAY);
         TextView minecountTextView = findViewById(R.id.minecount);
-        minecountTextView.setText(getResources().getString(
-                R.string.minecount, numMines));
+        minecountTextView.setText(getResources().getString(R.string.minecount, numMines));
     }
 
     private int coordsToId(int x, int y) {
@@ -84,12 +82,24 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return new Point(id % width, id / width);
     }
 
+    private ButtonData getButtonData(Button button) {
+        return (ButtonData) button.getTag(R.string.buttonData);
+    }
+
+    private ButtonData getButtonData(int id) {
+        return getButtonData(buttons[id]);
+    }
+
+    private ButtonData getButtonData(int x, int y) {
+        return getButtonData(coordsToId(x, y));
+    }
+
     private int getNeighbourCount(int id) {
         Point target = idToCoords(id);
         int neighbours = 0;
         for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
             for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
-                if (!(x == target.x && y == target.y) && (boolean) (buttons[coordsToId(x, y)].getTag(R.string.ismine))) {
+                if (!(x == target.x && y == target.y) &&  getButtonData(x, y).isMine) {
                     ++neighbours;
                 }
             }
@@ -102,12 +112,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
             for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
                 int chkid = coordsToId(x, y);
-                if ((x == target.x && y == target.y) || ((boolean) buttons[chkid].getTag(R.string.isseen))) {
+                ButtonData buttonData = getButtonData(chkid);
+                if ((x == target.x && y == target.y) || buttonData.isRevealed) {
                     continue;
                 }
                 Button button = buttons[chkid];
                 button.setBackgroundColor(Color.LTGRAY);
-                button.setTag(R.string.isseen, true);
+                buttonData.isRevealed = true;
                 button.setOnClickListener(null);
                 button.setOnLongClickListener(null);
                 if (getNeighbourCount(chkid) == 0) {
@@ -120,35 +131,37 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void onClick(View v) {
-        if ((boolean) v.getTag(R.string.ismarked)) {
+        Button button = (Button) v;
+        ButtonData buttonData = getButtonData(button);
+        if (buttonData.isRevealed) {
             return;
         }
-        Button button = (Button) v;
-        int id = (int) button.getTag(R.string.tileid);
-        boolean ismine = (boolean) button.getTag(R.string.ismine);
-        if (ismine) {
+        if (buttonData.isMine) {
             TextView endtext = findViewById(R.id.end);
-            endtext.setText(getResources().getString(R.string.lose));
+            endtext.setText(R.string.lose);
             endtext.setVisibility(VISIBLE);
             for (Button b: buttons) {
                 b.setOnClickListener(null);
                 b.setOnLongClickListener(null);
-                if ((boolean) b.getTag(R.string.ismine)) {
-                    if ((boolean) b.getTag(R.string.ismarked)) {
-                        b.setText(getString(R.string.foundmine));
+                ButtonData bd = getButtonData(b);
+                if (bd.isMine) {
+                    if (bd.isMarked) {
+                        b.setText(R.string.foundmine);
                     } else {
-                        b.setText(getString(R.string.mine));
+                        b.setText(R.string.mine);
                     }
+                } else if (bd.isMarked) {
+                    b.setTextColor(Color.RED);
                 }
             }
         } else {
             button.setOnClickListener(null);
             button.setOnLongClickListener(null);
             button.setBackgroundColor(Color.LTGRAY);
-            button.setTag(R.string.isseen, true);
-            int neighbours = getNeighbourCount(id);
+            buttonData.isRevealed = true;
+            int neighbours = getNeighbourCount(buttonData.id);
             if (neighbours == 0) {
-                propagateZeroes(id);
+                propagateZeroes(buttonData.id);
             } else {
                 button.setText(String.valueOf(neighbours));
             }
@@ -157,27 +170,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public boolean onLongClick(View v) {
         Button button = (Button) v;
-        if ((boolean) button.getTag(R.string.ismarked)) {
+        ButtonData buttonData = getButtonData(button);
+        if (buttonData.isMarked) {
             button.setText("");
-            button.setTag(R.string.ismarked, false);
-            if ((boolean) button.getTag(R.string.ismine)) {
+            buttonData.isMarked = false;
+            if (buttonData.isMine) {
                 --numCorrectFlags;
             } else {
                 --numIncorrectFlags;
             }
         } else {
             button.setText(R.string.flag);
-            button.setTag(R.string.ismarked, true);
-            if ((boolean) button.getTag(R.string.ismine)) {
+            buttonData.isMarked = true;
+            if (buttonData.isMine) {
                 ++numCorrectFlags;
                 if (numCorrectFlags == numMines && numIncorrectFlags == 0) {
                     TextView endtext = findViewById(R.id.end);
-                    endtext.setText(getResources().getString(R.string.win));
+                    endtext.setText(R.string.win);
                     endtext.setVisibility(VISIBLE);
                     for (Button b : buttons) {
                         b.setOnClickListener(null);
                         b.setOnLongClickListener(null);
-                        if ((boolean) b.getTag(R.string.ismine)) {
+                        if (getButtonData(b).isMine) {
                             b.setText(R.string.foundmine);
                         }
                     }

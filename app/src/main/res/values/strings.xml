@@ -2,10 +2,7 @@
     <string name="app_name">Minesweeper</string>
     <string name="reset">reset</string>
     <string name="quit">quit</string>
-    <string name="tileid">tileid</string>
-    <string name="ismine">ismine</string>
-    <string name="ismarked">ismarked</string>
-    <string name="isseen">isseen</string>
+    <string name="buttonData">buttonData</string>
     <string name="minecount">%1$d mines</string>
     <string name="win">You win!</string>
     <string name="lose">You lose!</string>
