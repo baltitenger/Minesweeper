@@ -23,8 +23,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Button[] buttons;
     private LinearLayout board;
     private Context context;
-    private double mineprob = 0.2;
-    private int foundmines, foundnotmines, minecount;
+    private double mineProb = 0.2;
+    private int numCorrectFlags, numIncorrectFlags, numMines;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,21 +38,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         FrameLayout boardContainer = findViewById(R.id.board_container);
         boardContainer.removeAllViews();
         findViewById(R.id.end).setVisibility(INVISIBLE);
-        foundmines = foundnotmines = minecount = 0;
+        numCorrectFlags = numIncorrectFlags = numMines = 0;
         buttons = new Button[width * height];
         board = new LinearLayout(context);
         board.setOrientation(LinearLayout.VERTICAL);
         boardContainer.addView(board, MATCH_PARENT, MATCH_PARENT);
-        for (int y = 0; y < height; y++) {
+        for (int y = 0; y < height; ++y) {
             LinearLayout row = new LinearLayout(context);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            for (int x = 0; x < width; x++) {
+            for (int x = 0; x < width; ++x) {
                 Button button = new Button(context);
                 button.setTag(R.string.tileid, coordsToId(x, y));
                 button.setTag(R.string.ismarked, false);
                 button.setTag(R.string.isseen, false);
-                if (new Random().nextDouble() < mineprob) {
-                    minecount++;
+                if (new Random().nextDouble() < mineProb) {
+                    numMines++;
                     button.setTag(R.string.ismine, true);
                 } else {
                     button.setTag(R.string.ismine, false);
@@ -73,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         board.setBackgroundColor(Color.DKGRAY);
         TextView minecountTextView = findViewById(R.id.minecount);
         minecountTextView.setText(getResources().getString(
-                R.string.minecount, minecount));
+                R.string.minecount, numMines));
     }
 
     private int coordsToId(int x, int y) {
@@ -85,24 +85,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private int getNeighbourCount(int id) {
-        int targetx = idToCoords(id).x;
-        int targety = idToCoords(id).y;
+        Point target = idToCoords(id);
         int neighbours = 0;
-        for (int y = -1; y <= 1; y++) {
-            for (int x = -1; x <= 1; x++) {
-                if (x == 0 && y == 0) { continue; }
-                int chkx = targetx + x;
-                int chky = targety + y;
-                if (chkx >= 0 && chky >= 0 && chkx < width && chky < height
-                        && (boolean) (buttons[coordsToId(chkx, chky)].getTag(R.string.ismine))) {
-                    neighbours++;
+        for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
+            for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
+                if (!(x == target.x && y == target.y) && (boolean) (buttons[coordsToId(x, y)].getTag(R.string.ismine))) {
+                    ++neighbours;
                 }
             }
         }
         return neighbours;
     }
 
-    private void propagatezeroes(int id) {
+    private void propagateZeroes(int id) {
         Point target = idToCoords(id);
         for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
             for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
@@ -116,7 +111,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 button.setOnClickListener(null);
                 button.setOnLongClickListener(null);
                 if (getNeighbourCount(chkid) == 0) {
-                    propagatezeroes(chkid);
+                    propagateZeroes(chkid);
                 } else {
                     button.setText(String.valueOf(getNeighbourCount(chkid)));
                 }
@@ -146,7 +141,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
                 }
             }
-
         } else {
             button.setOnClickListener(null);
             button.setOnLongClickListener(null);
@@ -154,7 +148,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             button.setTag(R.string.isseen, true);
             int neighbours = getNeighbourCount(id);
             if (neighbours == 0) {
-                propagatezeroes(id);
+                propagateZeroes(id);
             } else {
                 button.setText(String.valueOf(neighbours));
             }
@@ -167,16 +161,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             button.setText("");
             button.setTag(R.string.ismarked, false);
             if ((boolean) button.getTag(R.string.ismine)) {
-                foundmines--;
+                --numCorrectFlags;
             } else {
-                foundnotmines--;
+                --numIncorrectFlags;
             }
         } else {
             button.setText(R.string.flag);
             button.setTag(R.string.ismarked, true);
             if ((boolean) button.getTag(R.string.ismine)) {
-                foundmines++;
-                if (foundmines == minecount && foundnotmines == 0) {
+                ++numCorrectFlags;
+                if (numCorrectFlags == numMines && numIncorrectFlags == 0) {
                     TextView endtext = findViewById(R.id.end);
                     endtext.setText(getResources().getString(R.string.win));
                     endtext.setVisibility(VISIBLE);
@@ -189,7 +183,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
                 }
             } else {
-                foundnotmines++;
+                ++numIncorrectFlags;
             }
         }
         return true;
