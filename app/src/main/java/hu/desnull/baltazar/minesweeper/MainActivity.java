@@ -34,15 +34,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         init();
     }
 
-    public void init() {
-        ((FrameLayout) findViewById(R.id.board_container)).removeAllViews();
+    private void init() {
+        FrameLayout boardContainer = findViewById(R.id.board_container);
+        boardContainer.removeAllViews();
         findViewById(R.id.end).setVisibility(INVISIBLE);
         foundmines = foundnotmines = minecount = 0;
         buttons = new Button[width * height];
         board = new LinearLayout(context);
         board.setOrientation(LinearLayout.VERTICAL);
-        ((FrameLayout) findViewById(R.id.board_container)).addView(board,
-                MATCH_PARENT, MATCH_PARENT);
+        boardContainer.addView(board, MATCH_PARENT, MATCH_PARENT);
         for (int y = 0; y < height; y++) {
             LinearLayout row = new LinearLayout(context);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -71,19 +71,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         board.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
         board.setDividerDrawable(getResources().getDrawable(R.drawable.divider));
         board.setBackgroundColor(Color.DKGRAY);
-        ((TextView) findViewById(R.id.minecount)).setText(getResources().getString(
+        TextView minecountTextView = findViewById(R.id.minecount);
+        minecountTextView.setText(getResources().getString(
                 R.string.minecount, minecount));
     }
 
-    public int coordsToId(int x, int y) {
+    private int coordsToId(int x, int y) {
         return y * width + x;
     }
 
-    public Point idToCoords(int id) {
+    private Point idToCoords(int id) {
         return new Point(id % width, id / width);
     }
 
-    public int getNeighbourCount(int id) {
+    private int getNeighbourCount(int id) {
         int targetx = idToCoords(id).x;
         int targety = idToCoords(id).y;
         int neighbours = 0;
@@ -101,16 +102,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return neighbours;
     }
 
-    public void propagatezeroes(int id) {
-        int targetx = idToCoords(id).x;
-        int targety = idToCoords(id).y;
-        for (int y = -1; y <= 1; y++) {
-            for (int x = -1; x <= 1; x++) {
-                int chkx = targetx + x;
-                int chky = targety + y;
-                int chkid = coordsToId(chkx, chky);
-                if ((x == 0 && y == 0) || !(chkx >= 0 && chky >= 0 && chkx < width && chky < height)
-                        || ((Boolean) buttons[chkid].getTag(R.string.isseen))) { continue; }
+    private void propagatezeroes(int id) {
+        Point target = idToCoords(id);
+        for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
+            for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
+                int chkid = coordsToId(x, y);
+                if ((x == target.x && y == target.y) || ((boolean) buttons[chkid].getTag(R.string.isseen))) {
+                    continue;
+                }
                 Button button = buttons[chkid];
                 button.setBackgroundColor(Color.LTGRAY);
                 button.setTag(R.string.isseen, true);
