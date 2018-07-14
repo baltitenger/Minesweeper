@@ -1,6 +1,7 @@
 package hu.desnull.baltazar.minesweeper;
 
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
@@ -23,7 +24,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Button[] buttons;
     private LinearLayout board;
     private Context context;
-    private double mineProb = 0.2;
+    private double mineProb = 0.15;
     private int numCorrectFlags, numIncorrectFlags, numMines;
 
     @Override
@@ -31,6 +32,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         context = getApplicationContext();
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         init();
     }
 
