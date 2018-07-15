@@ -115,7 +115,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
                 int chkid = coordsToId(x, y);
                 ButtonData buttonData = getButtonData(chkid);
-                if ((x == target.x && y == target.y) || buttonData.isRevealed) {
+                if ((x == target.x && y == target.y) || buttonData.isRevealed || buttonData.isMarked) {
                     continue;
                 }
                 Button button = buttons[chkid];
@@ -135,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         Button button = (Button) v;
         ButtonData buttonData = getButtonData(button);
-        if (buttonData.isRevealed) {
+        if (buttonData.isRevealed || buttonData.isMarked) {
             return;
         }
         if (buttonData.isMine) {
@@ -186,20 +186,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             buttonData.isMarked = true;
             if (buttonData.isMine) {
                 ++numCorrectFlags;
-                if (numCorrectFlags == numMines && numIncorrectFlags == 0) {
-                    TextView endtext = findViewById(R.id.end);
-                    endtext.setText(R.string.win);
-                    endtext.setVisibility(VISIBLE);
-                    for (Button b : buttons) {
-                        b.setOnClickListener(null);
-                        b.setOnLongClickListener(null);
-                        if (getButtonData(b).isMine) {
-                            b.setText(R.string.foundmine);
-                        }
-                    }
-                }
             } else {
                 ++numIncorrectFlags;
+            }
+        }
+        if (numCorrectFlags == numMines && numIncorrectFlags == 0) {
+            TextView endtext = findViewById(R.id.end);
+            endtext.setText(R.string.win);
+            endtext.setVisibility(VISIBLE);
+            for (Button b : buttons) {
+                b.setOnClickListener(null);
+                b.setOnLongClickListener(null);
+                if (getButtonData(b).isMine) {
+                    b.setText(R.string.foundmine);
+                }
             }
         }
         return true;
