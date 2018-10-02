@@ -8,6 +8,8 @@ import android.os.Bundle;
 import android.os.Vibrator;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -42,7 +44,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         context = getApplicationContext();
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-        Toolbar myToolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar myToolbar = findViewById(R.id.toolbar);
         setSupportActionBar(myToolbar);
         init();
     }
@@ -197,7 +199,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             buttonData.isMarked = false;
             if (buttonData.isMine) {
                 --numCorrectFlags;
-
             } else {
                 --numIncorrectFlags;
             }
@@ -225,6 +226,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
         return true;
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu){
+        super.onCreateOptionsMenu(menu);
+
+        getMenuInflater().inflate(R.menu.action_bar_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem menuItem){
+        switch (menuItem.getItemId()) {
+            case R.id.action_preferences:
+                //Intent intent = new Intent(context, SettingsActivity.class); //TODO create settingsActivity
+                //startActivity(intent);
+                return true;
+
+            default:
+                return super.onOptionsItemSelected(menuItem);
+        }
     }
 
     public void reset(View view) {
