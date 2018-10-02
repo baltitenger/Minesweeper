@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="@string/pref_dark_theme"
+        android:title="@string/pref_title_dark_theme"
+        android:summary="@string/pref_summary_dark_theme" />
+
+    <SwitchPreference
+        android:defaultValue="true"
+        android:key="@string/pref_propagate_zeroes"
+        android:title="@string/pref_title_propagate_zeroes"
+        android:summary="@string/pref_summary_propagate_zeroes" />
+
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="@string/pref_visual_propagation"
+        android:dependency="propagate_zeroes"
+        android:title="@string/pref_title_visual_propagation"
+        android:summary="@string/pref_summary_visual_propagation" />
+
+    <SwitchPreference
+        android:defaultValue="true"
+        android:key="@string/pref_double_tap_neighbours"
+        android:title="@string/pref_title_double_tap_neighbours"
+        android:summary="@string/pref_summary_double_tap_neighbours" />
+
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="@string/pref_live_neighbour_count"
+        android:title="@string/pref_title_live_neighbour_count"
+        android:summary="@string/pref_summary_live_neighbour_count" />
+
+</PreferenceScreen>

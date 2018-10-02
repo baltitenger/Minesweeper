@@ -1,11 +1,16 @@
 package hu.desnull.baltazar.minesweeper;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.graphics.Point;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
@@ -36,6 +41,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final int vibrateFlag = 50;
     private static final int maxBombVibrates = 8;
     private static final int minBombVibrates = 3;
+    private SharedPreferences sharedPrefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +53,33 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Toolbar myToolbar = findViewById(R.id.toolbar);
         setSupportActionBar(myToolbar);
         init();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu){
+        super.onCreateOptionsMenu(menu);
+
+        getMenuInflater().inflate(R.menu.action_bar_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem menuItem){
+        switch (menuItem.getItemId()) {
+            case R.id.action_preferences:
+                Intent intent = new Intent(context, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+
+            default:
+                return super.onOptionsItemSelected(menuItem);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
     }
 
     private void init() {
@@ -123,26 +156,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return neighbours;
     }
 
-    private void propagateZeroes(int id) {
-        Point target = idToCoords(id);
-        for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
-            for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
-                int chkid = coordsToId(x, y);
-                ButtonData buttonData = getButtonData(chkid);
-                if ((x == target.x && y == target.y) || buttonData.isRevealed || buttonData.isMarked) {
-                    continue;
-                }
-                Button button = buttons[chkid];
-                button.setBackgroundColor(Color.LTGRAY);
-                buttonData.isRevealed = true;
-                button.setOnClickListener(null);
-                button.setOnLongClickListener(null);
-                if (getNeighbourCount(chkid) == 0) {
-                    propagateZeroes(chkid);
-                } else {
-                    button.setText(String.valueOf(getNeighbourCount(chkid)));
+    private class propagateZeroesTask extends AsyncTask<Void, Void, Void> {
+        int mId;
+        public propagateZeroesTask(int id){
+            mId = id;
+            this.execute();
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            Point target = idToCoords(mId);
+            for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
+                for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
+                    int chkid = coordsToId(x, y);
+                    ButtonData buttonData = getButtonData(chkid);
+                    if ((x == target.x && y == target.y) || buttonData.isRevealed || buttonData.isMarked) {
+                        continue;
+                    }
+                    if (sharedPrefs.getBoolean(getString(R.string.pref_visual_propagation), false)) {
+                        SystemClock.sleep(10);
+                    }
+                    Button button = buttons[chkid];
+                    button.setBackgroundColor(Color.LTGRAY);
+                    buttonData.isRevealed = true;
+                    button.setOnClickListener(null);
+                    button.setOnLongClickListener(null);
+                    if (getNeighbourCount(chkid) == 0) {
+                        new propagateZeroesTask(chkid);
+                    } else {
+                        button.setText(String.valueOf(getNeighbourCount(chkid)));
+                    }
                 }
             }
+            return null;
         }
     }
 
@@ -183,7 +229,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             buttonData.isRevealed = true;
             int neighbours = getNeighbourCount(buttonData.id);
             if (neighbours == 0) {
-                propagateZeroes(buttonData.id);
+                if (sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), true)) {
+                    new propagateZeroesTask(buttonData.id);
+                }
             } else {
                 button.setText(String.valueOf(neighbours));
             }
@@ -226,27 +274,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
         return true;
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu){
-        super.onCreateOptionsMenu(menu);
-
-        getMenuInflater().inflate(R.menu.action_bar_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem menuItem){
-        switch (menuItem.getItemId()) {
-            case R.id.action_preferences:
-                //Intent intent = new Intent(context, SettingsActivity.class); //TODO create settingsActivity
-                //startActivity(intent);
-                return true;
-
-            default:
-                return super.onOptionsItemSelected(menuItem);
-        }
     }
 
     public void reset(View view) {
