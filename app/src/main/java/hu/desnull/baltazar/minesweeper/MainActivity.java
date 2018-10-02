@@ -5,13 +5,16 @@ import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
+import android.os.Vibrator;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.util.Arrays;
 import java.util.Random;
 
 import static android.view.View.INVISIBLE;
@@ -26,6 +29,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private Context context;
     private double mineProb = 0.15;
     private int numCorrectFlags, numIncorrectFlags, numMines;
+    private Vibrator vibrator;
+    private static final int vibrateBomb = 30;
+    private static final int vibrateFlag = 50;
+    private static final int maxBombVibrates = 8;
+    private static final int minBombVibrates = 3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,6 +41,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
         context = getApplicationContext();
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        Toolbar myToolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(myToolbar);
         init();
     }
 
@@ -57,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 } else {
                     buttonData.isMine = false;
                 }
+                button.setHapticFeedbackEnabled(false);
                 button.setTag(R.string.buttonData, buttonData);
                 button.setOnClickListener(this);
                 button.setOnLongClickListener(this);
@@ -73,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         board.setDividerDrawable(getResources().getDrawable(R.drawable.divider));
         board.setBackgroundColor(Color.DKGRAY);
         TextView minecountTextView = findViewById(R.id.minecount);
-        minecountTextView.setText(getResources().getString(R.string.minecount, numMines));
+        minecountTextView.setText(getString(R.string.minecount, 0, numMines));
     }
 
     private int coordsToId(int x, int y) {
@@ -139,6 +151,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return;
         }
         if (buttonData.isMine) {
+            TextView minecount = findViewById(R.id.minecount);
+            minecount.setText(getString(R.string.minecount, numCorrectFlags, numMines));
+            int numExplosions = minBombVibrates + ((maxBombVibrates - minBombVibrates) * (numMines - numCorrectFlags) / numMines);
+            long[] vibratePattern = new long[numExplosions * 2 - 1];
+            Arrays.fill(vibratePattern, vibrateBomb);
+            vibrator.vibrate(vibratePattern, -1);
             TextView endtext = findViewById(R.id.end);
             endtext.setText(R.string.lose);
             endtext.setVisibility(VISIBLE);
@@ -171,6 +189,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public boolean onLongClick(View v) {
+        vibrator.vibrate(vibrateFlag);
         Button button = (Button) v;
         ButtonData buttonData = getButtonData(button);
         if (buttonData.isMarked) {
@@ -178,6 +197,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             buttonData.isMarked = false;
             if (buttonData.isMine) {
                 --numCorrectFlags;
+
             } else {
                 --numIncorrectFlags;
             }
@@ -190,6 +210,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 ++numIncorrectFlags;
             }
         }
+        TextView minecount = findViewById(R.id.minecount);
+        minecount.setText(getString(R.string.minecount, numCorrectFlags + numIncorrectFlags, numMines));
         if (numCorrectFlags == numMines && numIncorrectFlags == 0) {
             TextView endtext = findViewById(R.id.end);
             endtext.setText(R.string.win);

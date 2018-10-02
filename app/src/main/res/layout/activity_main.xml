@@ -6,6 +6,18 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <android.support.v7.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/colorPrimary"
+        android:theme="@android:style/Widget.ActionBar.TabBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:titleTextColor="@android:color/background_light" />
+
     <Button
         android:id="@+id/button15"
         android:layout_width="wrap_content"
@@ -41,11 +53,13 @@
         android:layout_marginLeft="8dp"
         android:layout_marginRight="8dp"
         android:layout_marginStart="8dp"
-        android:textAppearance="@style/TextAppearance.AppCompat.Display1"
+        android:layout_marginTop="8dp"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        tools:text="n mines" />
+        app:layout_constraintTop_toTopOf="@+id/button_quit"
+        tools:text="nn/mm mines" />
 
     <TextView
         android:id="@+id/end"
@@ -58,7 +72,7 @@
         android:layout_marginStart="8dp"
         android:textAppearance="@style/TextAppearance.AppCompat.Display2"
         android:visibility="invisible"
-        app:layout_constraintBottom_toTopOf="@+id/minecount"
+        app:layout_constraintBottom_toTopOf="@+id/button_quit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:text="You win!" />
@@ -74,8 +88,9 @@
         android:layout_marginTop="8dp"
         app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toBottomOf="@+id/toolbar">
 
     </FrameLayout>
 
