@@ -16,12 +16,13 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -33,6 +34,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private int width = 10;
     private int height= 10;
     private Button[] buttons;
+    private List<Tile> tiles;
     private LinearLayout board;
     private Context context;
     private double mineProb = 0.15;
@@ -54,6 +56,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         Toolbar myToolbar = findViewById(R.id.toolbar);
         setSupportActionBar(myToolbar);
+        tiles = new LinkedList<>();
+        board = findViewById(R.id.board);
         init();
     }
 
@@ -85,42 +89,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void init() {
-        FrameLayout boardContainer = findViewById(R.id.board_container);
-        boardContainer.removeAllViews();
         findViewById(R.id.end).setVisibility(INVISIBLE);
         numCorrectFlags = numIncorrectFlags = numMines = 0;
-        buttons = new Button[width * height];
-        board = new LinearLayout(context);
-        board.setOrientation(LinearLayout.VERTICAL);
-        boardContainer.addView(board, MATCH_PARENT, MATCH_PARENT);
+        board.removeAllViews();
         for (int y = 0; y < height; ++y) {
             LinearLayout row = new LinearLayout(context);
             row.setOrientation(LinearLayout.HORIZONTAL);
             for (int x = 0; x < width; ++x) {
-                Button button = new Button(context);
-                ButtonData buttonData = new ButtonData(coordsToId(x, y));
+                Tile tile;
+                if (coordsToId(x, y) > tiles.size() - 1) {
+                    tile = new Tile(this, coordsToId(x, y));
+                    tiles.add(tile);
+                } else {
+                    tile = tiles.get(coordsToId(x, y));
+                    LinearLayout parent = (LinearLayout) tile.getParent();
+                    if (parent != null) {
+                        parent.removeAllViews();
+                    }
+                    tile.init();
+                }
                 if (new Random().nextDouble() < mineProb) {
                     numMines++;
-                    buttonData.isMine = true;
+                    tile.mine = true;
                 } else {
-                    buttonData.isMine = false;
+                    tile.mine = false;
                 }
-                button.setHapticFeedbackEnabled(false);
-                button.setTag(R.string.buttonData, buttonData);
-                button.setOnClickListener(this);
-                button.setOnLongClickListener(this);
-                button.setBackgroundColor(Color.GRAY);
-                button.setPadding(0, 0, 0, 0);
-                buttons[coordsToId(x, y)] = button;
-                row.addView(button, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f / width));
+                tile.setOnClickListener(this);
+                tile.setOnLongClickListener(this);
+                row.addView(tile, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT, 1));
             }
             row.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
             row.setDividerDrawable(getResources().getDrawable(R.drawable.divider));
-            board.addView(row, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT, 1.0f / height));
+            board.addView(row, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT, 1));
         }
         board.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
         board.setDividerDrawable(getResources().getDrawable(R.drawable.divider));
-        board.setBackgroundColor(Color.DKGRAY);
         TextView minecountTextView = findViewById(R.id.minecount);
         minecountTextView.setText(getString(R.string.minecount, 0, numMines));
     }
@@ -131,18 +134,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private Point idToCoords(int id) {
         return new Point(id % width, id / width);
-    }
-
-    private ButtonData getButtonData(Button button) {
-        return (ButtonData) button.getTag(R.string.buttonData);
-    }
-
-    private ButtonData getButtonData(int id) {
-        return getButtonData(buttons[id]);
-    }
-
-    private ButtonData getButtonData(int x, int y) {
-        return getButtonData(coordsToId(x, y));
     }
 
     private Set<Integer> getNeighbours(int id) {
@@ -161,22 +152,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private int getNeighbourMineCount(int id) {
         int neighbourMineCount = 0;
         for (int neighbourId : getNeighbours(id)) {
-            if (getButtonData(neighbourId).isMine) {
+            if (tiles.get(neighbourId).mine) {
                 ++neighbourMineCount;
             }
         }
         return neighbourMineCount;
     }
 
-    public boolean reveal(Button button) {
-        ButtonData buttonData = getButtonData(button);
-        button.setOnClickListener(null);
-        button.setOnLongClickListener(null);
-        button.setBackgroundColor(Color.LTGRAY);
-        buttonData.isRevealed = true;
-        int neighbours = getNeighbourMineCount(buttonData.id);
+    public boolean reveal(Tile tile) {
+        //button.setOnClickListener(null);
+        //button.setOnLongClickListener(null);
+        tile.setBackgroundColor(Color.LTGRAY);
+        tile.revealed = true;
+        int neighbours = getNeighbourMineCount(tile.id);
         if (neighbours != 0) {
-            button.setText(String.valueOf(neighbours));
+            tile.setText(String.valueOf(neighbours));
         }
         return neighbours == 0;
     }
@@ -199,8 +189,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Set <Integer> nextReveal = new HashSet<>();
                 for (int propageteId : propagateNow) {
                     for (int revealId : getNeighbours(propageteId)) {
-                        ButtonData buttonData = getButtonData(revealId);
-                        if (!(buttonData.isMarked || buttonData.isRevealed)) {
+                        Tile tile = tiles.get(revealId);
+                        if (!(tile.marked || tile.revealed)) {
                             nextReveal.add(revealId);
                             if (getNeighbourMineCount(revealId) == 0) {
                                 nextPropagation.add(revealId);
@@ -222,18 +212,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         @Override
         protected void onProgressUpdate(Void... values) {
             for (int revealId : toReveal) {
-                reveal(buttons[revealId]);
+                reveal(tiles.get(revealId));
             }
         }
     }
 
     public void onClick(View v) {
-        Button button = (Button) v;
-        ButtonData buttonData = getButtonData(button);
-        if (buttonData.isRevealed || buttonData.isMarked) {
+        Tile tile = (Tile) v;
+        if (tile.revealed || tile.marked) {
             return;
         }
-        if (buttonData.isMine) {
+        if (tile.mine) {
             TextView minecount = findViewById(R.id.minecount);
             minecount.setText(getString(R.string.minecount, numCorrectFlags, numMines));
             int numExplosions = minBombVibrates + ((maxBombVibrates - minBombVibrates) * (numMines - numCorrectFlags) / numMines);
@@ -243,43 +232,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             TextView endtext = findViewById(R.id.end);
             endtext.setText(R.string.lose);
             endtext.setVisibility(VISIBLE);
-            for (Button b: buttons) {
-                b.setOnClickListener(null);
-                b.setOnLongClickListener(null);
-                ButtonData bd = getButtonData(b);
-                if (bd.isMine) {
-                    if (bd.isMarked) {
-                        b.setText(R.string.foundmine);
+            for (Tile t: tiles) {
+                if (t.mine) {
+                    if (t.marked) {
+                        t.setText(R.string.foundmine);
                     } else {
-                        b.setText(R.string.mine);
+                        t.setText(R.string.mine);
                     }
-                } else if (bd.isMarked) {
-                    b.setTextColor(Color.RED);
+                } else if (t.marked) {
+                    t.setTextColor(Color.RED);
                 }
             }
         } else {
-            if (reveal(button) && sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), true)) {
-                new propagateZeroesTask(buttonData.id);
+            if (reveal(tile) && sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), true)) {
+                new propagateZeroesTask(tile.id);
             }
         }
     }
 
     public boolean onLongClick(View v) {
         vibrator.vibrate(vibrateFlag);
-        Button button = (Button) v;
-        ButtonData buttonData = getButtonData(button);
-        if (buttonData.isMarked) {
-            button.setText("");
-            buttonData.isMarked = false;
-            if (buttonData.isMine) {
+        Tile tile = (Tile) v;
+        if (tile.marked) {
+            tile.setText("");
+            tile.marked = false;
+            if (tile.mine) {
                 --numCorrectFlags;
             } else {
                 --numIncorrectFlags;
             }
         } else {
-            button.setText(R.string.flag);
-            buttonData.isMarked = true;
-            if (buttonData.isMine) {
+            tile.setText(R.string.flag);
+            tile.marked = true;
+            if (tile.mine) {
                 ++numCorrectFlags;
             } else {
                 ++numIncorrectFlags;
@@ -291,11 +276,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             TextView endtext = findViewById(R.id.end);
             endtext.setText(R.string.win);
             endtext.setVisibility(VISIBLE);
-            for (Button b : buttons) {
-                b.setOnClickListener(null);
-                b.setOnLongClickListener(null);
-                if (getButtonData(b).isMine) {
-                    b.setText(R.string.foundmine);
+            for (Tile t : tiles) {
+                //b.setOnClickListener(null);
+                //b.setOnLongClickListener(null);
+                if (t.mine) {
+                    t.setText(R.string.foundmine);
                 }
             }
         }
