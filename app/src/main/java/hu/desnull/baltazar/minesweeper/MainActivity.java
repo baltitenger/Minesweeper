@@ -3,7 +3,6 @@ package hu.desnull.baltazar.minesweeper;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.AsyncTask;
@@ -15,7 +14,6 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -33,10 +31,8 @@ import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, View.OnLongClickListener{
     private int width = 10;
     private int height= 10;
-    private Button[] buttons;
     private List<Tile> tiles;
     private LinearLayout board;
-    private Context context;
     private double mineProb = 0.15;
     private int propagateDelay = 20;
     private int numCorrectFlags, numIncorrectFlags, numMines;
@@ -51,8 +47,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        context = getApplicationContext();
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         Toolbar myToolbar = findViewById(R.id.toolbar);
         setSupportActionBar(myToolbar);
@@ -73,7 +67,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public boolean onOptionsItemSelected(MenuItem menuItem){
         switch (menuItem.getItemId()) {
             case R.id.action_preferences:
-                Intent intent = new Intent(context, SettingsActivity.class);
+                Intent intent = new Intent(this, SettingsActivity.class);
                 startActivity(intent);
                 return true;
 
@@ -93,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         numCorrectFlags = numIncorrectFlags = numMines = 0;
         board.removeAllViews();
         for (int y = 0; y < height; ++y) {
-            LinearLayout row = new LinearLayout(context);
+            LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             for (int x = 0; x < width; ++x) {
                 Tile tile;
@@ -160,8 +154,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public boolean reveal(Tile tile) {
-        //button.setOnClickListener(null);
-        //button.setOnLongClickListener(null);
         tile.setBackgroundColor(Color.LTGRAY);
         tile.revealed = true;
         int neighbours = getNeighbourMineCount(tile.id);
@@ -277,8 +269,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             endtext.setText(R.string.win);
             endtext.setVisibility(VISIBLE);
             for (Tile t : tiles) {
-                //b.setOnClickListener(null);
-                //b.setOnLongClickListener(null);
                 if (t.mine) {
                     t.setText(R.string.foundmine);
                 }
