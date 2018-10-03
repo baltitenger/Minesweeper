@@ -6,6 +6,22 @@
         android:title="@string/pref_title_dark_theme"
         android:summary="@string/pref_summary_dark_theme" />
 
+    <EditTextPreference
+        android:defaultValue="15"
+        android:key="@string/pref_mine_probability"
+        android:dialogTitle="@string/pref_title_mine_probability_dialog"
+        android:inputType="number"
+        android:title="@string/pref_title_mine_probability"
+        android:summary="@string/pref_summary_mine_probability" />
+
+    <EditTextPreference
+        android:defaultValue="10"
+        android:key="@string/pref_board_size"
+        android:dialogTitle="@string/pref_title_board_size_dialog"
+        android:inputType="number"
+        android:title="@string/pref_title_board_size"
+        android:summary="@string/pref_summary_board_size" />
+
     <SwitchPreference
         android:defaultValue="true"
         android:key="@string/pref_propagate_zeroes"

@@ -1,6 +1,7 @@
 package hu.desnull.baltazar.minesweeper;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 
 public class Tile extends android.support.v7.widget.AppCompatButton {
@@ -8,10 +9,12 @@ public class Tile extends android.support.v7.widget.AppCompatButton {
     public boolean mine;
     public boolean marked;
     public boolean revealed;
+    private ColorStateList defaultColors;
 
     public Tile(Context context, int id) {
         super(context);
         this.id = id;
+        defaultColors = this.getTextColors();
         init();
     }
 
@@ -20,6 +23,7 @@ public class Tile extends android.support.v7.widget.AppCompatButton {
         this.setBackgroundColor(Color.GRAY);
         this.setPadding(1, 1, 1, 1);
         this.setText("");
+        this.setTextColor(defaultColors);
         mine = marked = revealed = false;
     }
 }

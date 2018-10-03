@@ -28,20 +28,22 @@ import static android.view.View.INVISIBLE;
 import static android.view.View.VISIBLE;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, View.OnLongClickListener{
-    private int width = 10;
-    private int height= 10;
-    private List<Tile> tiles;
-    private LinearLayout board;
-    private double mineProb = 0.15;
-    private int propagateDelay = 20;
-    private int numCorrectFlags, numIncorrectFlags, numMines;
-    private Vibrator vibrator;
+public class MainActivity extends AppCompatActivity
+        implements View.OnClickListener, View.OnLongClickListener {
+    private float mineProb;
+    private int width, height, numCorrectFlags, numIncorrectFlags, numMines;
+    private boolean ended;
+
+    private static final int propagateDelay = 20;
     private static final int vibrateBomb = 30;
     private static final int vibrateFlag = 50;
     private static final int maxBombVibrates = 8;
     private static final int minBombVibrates = 3;
+
     private SharedPreferences sharedPrefs;
+    private List<Tile> tiles;
+    private LinearLayout board;
+    private Vibrator vibrator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,6 +54,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setSupportActionBar(myToolbar);
         tiles = new LinkedList<>();
         board = findViewById(R.id.board);
+        PreferenceManager.setDefaultValues(this, R.xml.preferences,false);
+        loadPrefs();
         init();
     }
 
@@ -79,10 +83,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onResume() {
         super.onResume();
+        loadPrefs();
+    }
+
+    private void loadPrefs() {
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+        mineProb = Integer.parseInt(sharedPrefs.getString(getString(R.string.pref_mine_probability), "")) / 100f;
+        width = height = Integer.parseInt(sharedPrefs.getString(getString(R.string.pref_board_size), ""));
     }
 
     private void init() {
+        ended = false;
         findViewById(R.id.end).setVisibility(INVISIBLE);
         numCorrectFlags = numIncorrectFlags = numMines = 0;
         board.removeAllViews();
@@ -209,34 +220,51 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    private void win() {
+        ended = true;
+        TextView endtext = findViewById(R.id.end);
+        endtext.setText(R.string.win);
+        endtext.setVisibility(VISIBLE);
+        for (Tile tile : tiles) {
+            if (tile.mine) {
+                tile.setText(R.string.foundmine);
+            }
+        }
+    }
+
+    private void lose() {
+        ended = true;
+        TextView minecount = findViewById(R.id.minecount);
+        minecount.setText(getString(R.string.minecount, numCorrectFlags, numMines));
+        int numExplosions = minBombVibrates + ((maxBombVibrates - minBombVibrates) * (numMines - numCorrectFlags) / numMines);
+        long[] vibratePattern = new long[numExplosions * 2 - 1];
+        Arrays.fill(vibratePattern, vibrateBomb);
+        vibrator.vibrate(vibratePattern, -1);
+        TextView endtext = findViewById(R.id.end);
+        endtext.setText(R.string.lose);
+        endtext.setVisibility(VISIBLE);
+        for (Tile tile : tiles) {
+            if (tile.mine) {
+                if (tile.marked) {
+                    tile.setText(R.string.foundmine);
+                } else {
+                    tile.setText(R.string.mine);
+                }
+            } else if (tile.marked) {
+                tile.setTextColor(Color.RED);
+            }
+        }
+    }
+
     public void onClick(View v) {
         Tile tile = (Tile) v;
-        if (tile.revealed || tile.marked) {
+        if (ended || tile.revealed || tile.marked) {
             return;
         }
         if (tile.mine) {
-            TextView minecount = findViewById(R.id.minecount);
-            minecount.setText(getString(R.string.minecount, numCorrectFlags, numMines));
-            int numExplosions = minBombVibrates + ((maxBombVibrates - minBombVibrates) * (numMines - numCorrectFlags) / numMines);
-            long[] vibratePattern = new long[numExplosions * 2 - 1];
-            Arrays.fill(vibratePattern, vibrateBomb);
-            vibrator.vibrate(vibratePattern, -1);
-            TextView endtext = findViewById(R.id.end);
-            endtext.setText(R.string.lose);
-            endtext.setVisibility(VISIBLE);
-            for (Tile t: tiles) {
-                if (t.mine) {
-                    if (t.marked) {
-                        t.setText(R.string.foundmine);
-                    } else {
-                        t.setText(R.string.mine);
-                    }
-                } else if (t.marked) {
-                    t.setTextColor(Color.RED);
-                }
-            }
+            lose();
         } else {
-            if (reveal(tile) && sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), true)) {
+            if (reveal(tile) && sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), false)) {
                 new propagateZeroesTask(tile.id);
             }
         }
@@ -244,7 +272,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public boolean onLongClick(View v) {
         Tile tile = (Tile) v;
-        if (tile.revealed) {
+        if (ended || tile.revealed) {
             return true;
         }
         vibrator.vibrate(vibrateFlag);
@@ -268,14 +296,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         TextView minecount = findViewById(R.id.minecount);
         minecount.setText(getString(R.string.minecount, numCorrectFlags + numIncorrectFlags, numMines));
         if (numCorrectFlags == numMines && numIncorrectFlags == 0) {
-            TextView endtext = findViewById(R.id.end);
-            endtext.setText(R.string.win);
-            endtext.setVisibility(VISIBLE);
-            for (Tile t : tiles) {
-                if (t.mine) {
-                    t.setText(R.string.foundmine);
-                }
-            }
+            win();
         }
         return true;
     }

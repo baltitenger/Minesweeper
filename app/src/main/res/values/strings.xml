@@ -18,6 +18,16 @@
     <string name="pref_title_dark_theme">Dark theme</string>
     <string name="pref_summary_dark_theme">Toggle dark theme.</string>
 
+    <string name="pref_mine_probability">mine_probability</string>
+    <string name="pref_title_mine_probability">Mine probability</string>
+    <string name="pref_summary_mine_probability">set probability of mines.</string>
+    <string name="pref_title_mine_probability_dialog">Average percentage of mines</string>
+
+    <string name="pref_board_size">board_size</string>
+    <string name="pref_title_board_size">Board size</string>
+    <string name="pref_summary_board_size">set board size</string>
+    <string name="pref_title_board_size_dialog">Board size</string>
+
     <string name="pref_propagate_zeroes">propagate_zeroes</string>
     <string name="pref_title_propagate_zeroes">Propagate zeroes</string>
     <string name="pref_summary_propagate_zeroes">Toggle propagation of tiles with no neighbouring mines.</string>
@@ -26,9 +36,9 @@
     <string name="pref_title_visual_propagation">Visual propagation</string>
     <string name="pref_summary_visual_propagation">Toggle visual propagation.</string>
 
-    <string name="pref_double_tap_neighbours">double_tap_neighbours</string>
-    <string name="pref_title_double_tap_neighbours">Double tap neighbours</string>
-    <string name="pref_summary_double_tap_neighbours">Toggle double tap a tile to reveal all its neighbours.</string>
+    <string name="pref_double_tap_neighbours">long_click_neighbours</string>
+    <string name="pref_title_double_tap_neighbours">Long click neighbours</string>
+    <string name="pref_summary_double_tap_neighbours">Toggle toggle whether long pressing on a revealed tile reveals all its neighbours.</string>
 
     <string name="pref_live_neighbour_count">live_neighbour_count</string>
     <string name="pref_title_live_neighbour_count">Live neighbour count</string>
