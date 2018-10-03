@@ -8,7 +8,6 @@ import android.graphics.Color;
 import android.graphics.Point;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.SystemClock;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
@@ -22,7 +21,9 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 
 import static android.view.View.INVISIBLE;
 import static android.view.View.VISIBLE;
@@ -35,6 +36,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private LinearLayout board;
     private Context context;
     private double mineProb = 0.15;
+    private int propagateDelay = 20;
     private int numCorrectFlags, numIncorrectFlags, numMines;
     private Vibrator vibrator;
     private static final int vibrateBomb = 30;
@@ -143,52 +145,85 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return getButtonData(coordsToId(x, y));
     }
 
-    private int getNeighbourCount(int id) {
+    private Set<Integer> getNeighbours(int id) {
+        Set<Integer> neighbours = new HashSet<>();
         Point target = idToCoords(id);
-        int neighbours = 0;
         for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
             for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
-                if (!(x == target.x && y == target.y) &&  getButtonData(x, y).isMine) {
-                    ++neighbours;
+                if (!(x == target.x && y == target.y)) {
+                    neighbours.add(coordsToId(x, y));
                 }
             }
         }
         return neighbours;
     }
 
+    private int getNeighbourMineCount(int id) {
+        int neighbourMineCount = 0;
+        for (int neighbourId : getNeighbours(id)) {
+            if (getButtonData(neighbourId).isMine) {
+                ++neighbourMineCount;
+            }
+        }
+        return neighbourMineCount;
+    }
+
+    public boolean reveal(Button button) {
+        ButtonData buttonData = getButtonData(button);
+        button.setOnClickListener(null);
+        button.setOnLongClickListener(null);
+        button.setBackgroundColor(Color.LTGRAY);
+        buttonData.isRevealed = true;
+        int neighbours = getNeighbourMineCount(buttonData.id);
+        if (neighbours != 0) {
+            button.setText(String.valueOf(neighbours));
+        }
+        return neighbours == 0;
+    }
+
     private class propagateZeroesTask extends AsyncTask<Void, Void, Void> {
-        int mId;
+        Set<Integer> nextPropagation;
+        Set<Integer> toReveal;
+
         public propagateZeroesTask(int id){
-            mId = id;
+            nextPropagation = new HashSet<>();
+            nextPropagation.add(id);
             this.execute();
         }
 
         @Override
         protected Void doInBackground(Void... voids) {
-            Point target = idToCoords(mId);
-            for (int y = Math.max(0, target.y - 1); y <= target.y + 1 && y < height; ++y) {
-                for (int x = Math.max(0, target.x - 1); x <= target.x + 1 && x < height; ++x) {
-                    int chkid = coordsToId(x, y);
-                    ButtonData buttonData = getButtonData(chkid);
-                    if ((x == target.x && y == target.y) || buttonData.isRevealed || buttonData.isMarked) {
-                        continue;
-                    }
-                    if (sharedPrefs.getBoolean(getString(R.string.pref_visual_propagation), false)) {
-                        SystemClock.sleep(10);
-                    }
-                    Button button = buttons[chkid];
-                    button.setBackgroundColor(Color.LTGRAY);
-                    buttonData.isRevealed = true;
-                    button.setOnClickListener(null);
-                    button.setOnLongClickListener(null);
-                    if (getNeighbourCount(chkid) == 0) {
-                        new propagateZeroesTask(chkid);
-                    } else {
-                        button.setText(String.valueOf(getNeighbourCount(chkid)));
+            do {
+                Set<Integer> propagateNow = new HashSet<>(nextPropagation);
+                nextPropagation = new HashSet<>();
+                Set <Integer> nextReveal = new HashSet<>();
+                for (int propageteId : propagateNow) {
+                    for (int revealId : getNeighbours(propageteId)) {
+                        ButtonData buttonData = getButtonData(revealId);
+                        if (!(buttonData.isMarked || buttonData.isRevealed)) {
+                            nextReveal.add(revealId);
+                            if (getNeighbourMineCount(revealId) == 0) {
+                                nextPropagation.add(revealId);
+                            }
+                        }
                     }
                 }
-            }
+                toReveal = new HashSet<>(nextReveal);
+                publishProgress();
+                if (sharedPrefs.getBoolean(getString(R.string.pref_visual_propagation), false)) {
+                    try {
+                        Thread.sleep(propagateDelay);
+                    } catch (InterruptedException ignore) {}
+                }
+            } while (!nextPropagation.isEmpty());
             return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(Void... values) {
+            for (int revealId : toReveal) {
+                reveal(buttons[revealId]);
+            }
         }
     }
 
@@ -223,17 +258,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             }
         } else {
-            button.setOnClickListener(null);
-            button.setOnLongClickListener(null);
-            button.setBackgroundColor(Color.LTGRAY);
-            buttonData.isRevealed = true;
-            int neighbours = getNeighbourCount(buttonData.id);
-            if (neighbours == 0) {
-                if (sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), true)) {
-                    new propagateZeroesTask(buttonData.id);
-                }
-            } else {
-                button.setText(String.valueOf(neighbours));
+            if (reveal(button) && sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), true)) {
+                new propagateZeroesTask(buttonData.id);
             }
         }
     }
