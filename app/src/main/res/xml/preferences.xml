@@ -25,8 +25,8 @@
     <SwitchPreference
         android:defaultValue="true"
         android:key="@string/pref_propagate_zeroes"
-        android:title="@string/pref_title_propagate_zeroes"
-        android:summary="@string/pref_summary_propagate_zeroes" />
+        android:summary="@string/pref_summary_propagate_zeroes"
+        android:title="@string/pref_title_propagate_zeroes" />
 
     <SwitchPreference
         android:defaultValue="false"
@@ -35,11 +35,11 @@
         android:title="@string/pref_title_visual_propagation"
         android:summary="@string/pref_summary_visual_propagation" />
 
-    <SwitchPreference
+    <!--SwitchPreference
         android:defaultValue="true"
         android:key="@string/pref_double_tap_neighbours"
         android:title="@string/pref_title_double_tap_neighbours"
-        android:summary="@string/pref_summary_double_tap_neighbours" />
+        android:summary="@string/pref_summary_double_tap_neighbours" /-->
 
     <SwitchPreference
         android:defaultValue="false"
