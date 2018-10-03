@@ -243,8 +243,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public boolean onLongClick(View v) {
-        vibrator.vibrate(vibrateFlag);
         Tile tile = (Tile) v;
+        if (tile.revealed) {
+            return true;
+        }
+        vibrator.vibrate(vibrateFlag);
         if (tile.marked) {
             tile.setText("");
             tile.marked = false;
