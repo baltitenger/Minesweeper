@@ -164,36 +164,50 @@ public class MainActivity extends AppCompatActivity
         return neighbourMineCount;
     }
 
-    public boolean reveal(Tile tile) {
+    private int getNeighbourMarkCount(int id) {
+        int neighbourMarkCount = 0;
+        for (int neighbourId : getNeighbours(id)) {
+            if (tiles.get(neighbourId).marked) {
+                ++neighbourMarkCount;
+            }
+        }
+        return neighbourMarkCount;
+    }
+
+    public int reveal(Tile tile, boolean propagate) {
         tile.setBackgroundColor(Color.LTGRAY);
         tile.revealed = true;
         int neighbours = getNeighbourMineCount(tile.id);
         if (neighbours != 0) {
+            if (sharedPrefs.getBoolean(getString(R.string.pref_live_neighbour_count), false)) {
+                neighbours -= getNeighbourMarkCount(tile.id);
+            }
             tile.setText(String.valueOf(neighbours));
         }
-        return neighbours == 0;
+        if (propagate && neighbours == 0 && sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), false)) {
+            new propagateZeroesTask().execute(tile.id);
+        }
+        return neighbours;
     }
 
-    private class propagateZeroesTask extends AsyncTask<Void, Void, Void> {
+    private class propagateZeroesTask extends AsyncTask<Integer, Void, Boolean> {
         Set<Integer> nextPropagation;
         Set<Integer> toReveal;
 
-        public propagateZeroesTask(int id){
-            nextPropagation = new HashSet<>();
-            nextPropagation.add(id);
-            this.execute();
-        }
-
         @Override
-        protected Void doInBackground(Void... voids) {
+        protected Boolean doInBackground(Integer... ids) {
+            nextPropagation = new HashSet<>(Arrays.asList(ids));
+            Set <Integer> nextReveal = new HashSet<>();
             do {
                 Set<Integer> propagateNow = new HashSet<>(nextPropagation);
-                nextPropagation = new HashSet<>();
-                Set <Integer> nextReveal = new HashSet<>();
+                nextPropagation.clear();
                 for (int propageteId : propagateNow) {
                     for (int revealId : getNeighbours(propageteId)) {
                         Tile tile = tiles.get(revealId);
                         if (!(tile.marked || tile.revealed)) {
+                            if (tile.mine) {
+                                return true;
+                            }
                             nextReveal.add(revealId);
                             if (getNeighbourMineCount(revealId) == 0) {
                                 nextPropagation.add(revealId);
@@ -202,6 +216,7 @@ public class MainActivity extends AppCompatActivity
                     }
                 }
                 toReveal = new HashSet<>(nextReveal);
+                nextReveal.clear();
                 publishProgress();
                 if (sharedPrefs.getBoolean(getString(R.string.pref_visual_propagation), false)) {
                     try {
@@ -209,13 +224,20 @@ public class MainActivity extends AppCompatActivity
                     } catch (InterruptedException ignore) {}
                 }
             } while (!nextPropagation.isEmpty());
-            return null;
+            return false;
+        }
+
+        @Override
+        protected void onPostExecute(Boolean lost) {
+            if (lost) {
+                lose();
+            }
         }
 
         @Override
         protected void onProgressUpdate(Void... values) {
             for (int revealId : toReveal) {
-                reveal(tiles.get(revealId));
+                reveal(tiles.get(revealId), false);
             }
         }
     }
@@ -264,9 +286,7 @@ public class MainActivity extends AppCompatActivity
         if (tile.mine) {
             lose();
         } else {
-            if (reveal(tile) && sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), false)) {
-                new propagateZeroesTask(tile.id);
-            }
+            reveal(tile, true);
         }
     }
 
@@ -292,6 +312,17 @@ public class MainActivity extends AppCompatActivity
             } else {
                 ++numIncorrectFlags;
             }
+        }
+        if (sharedPrefs.getBoolean(getString(R.string.pref_live_neighbour_count), false)) {
+            Set<Integer> toPropagate = new HashSet<>();
+            for (int neighbourId : getNeighbours(tile.id)) {
+                if (tiles.get(neighbourId).revealed) {
+                    if (reveal(tiles.get(neighbourId), false) == 0) {
+                        toPropagate.add(neighbourId);
+                    }
+                }
+            }
+            new propagateZeroesTask().execute(toPropagate.toArray(new Integer[0]));
         }
         TextView minecount = findViewById(R.id.minecount);
         minecount.setText(getString(R.string.minecount, numCorrectFlags + numIncorrectFlags, numMines));
