@@ -4,12 +4,12 @@ import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 
-public class Tile extends android.support.v7.widget.AppCompatButton {
+public class Tile extends androidx.appcompat.widget.AppCompatButton {
     public int id;
     public boolean mine;
     public boolean marked;
     public boolean revealed;
-    private ColorStateList defaultColors;
+    private final ColorStateList defaultColors;
 
     public Tile(Context context, int id) {
         super(context);

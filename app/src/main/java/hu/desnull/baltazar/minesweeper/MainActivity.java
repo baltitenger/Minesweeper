@@ -1,38 +1,43 @@
 package hu.desnull.baltazar.minesweeper;
 
+import static android.view.View.VISIBLE;
+import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Point;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Vibrator;
-import android.preference.PreferenceManager;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.res.ResourcesCompat;
+import androidx.preference.PreferenceManager;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import static android.view.View.INVISIBLE;
-import static android.view.View.VISIBLE;
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+import hu.desnull.baltazar.minesweeper.databinding.ActivityMainBinding;
 
 public class MainActivity extends AppCompatActivity
         implements View.OnClickListener, View.OnLongClickListener {
+
     private float mineProb;
     private int width, height, numCorrectFlags, numIncorrectFlags, numMines;
-    private boolean ended;
+    private boolean ended, liveNeighs, doPropagate, visualProp;
 
     private static final int propagateDelay = 20;
     private static final int vibrateBomb = 30;
@@ -40,44 +45,53 @@ public class MainActivity extends AppCompatActivity
     private static final int maxBombVibrates = 8;
     private static final int minBombVibrates = 3;
 
-    private SharedPreferences sharedPrefs;
-    private List<Tile> tiles;
-    private LinearLayout board;
+    private ArrayList<Tile> tiles;
     private Vibrator vibrator;
+    private Random random;
+
+    private ActivityMainBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+
+        setSupportActionBar(binding.toolbar);
+
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-        Toolbar myToolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(myToolbar);
-        tiles = new LinkedList<>();
-        board = findViewById(R.id.board);
-        PreferenceManager.setDefaultValues(this, R.xml.preferences,false);
+        tiles = new ArrayList<>();
+        random = new Random();
+
+        PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
         loadPrefs();
+
         init();
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu){
-        super.onCreateOptionsMenu(menu);
-
-        getMenuInflater().inflate(R.menu.action_bar_menu, menu);
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem menuItem){
-        switch (menuItem.getItemId()) {
-            case R.id.action_preferences:
-                Intent intent = new Intent(this, SettingsActivity.class);
-                startActivity(intent);
-                return true;
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
 
-            default:
-                return super.onOptionsItemSelected(menuItem);
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_settings) {
+            Intent intent = new Intent(this, SettingsActivity.class);
+            startActivity(intent);
+            return true;
         }
+
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -87,16 +101,19 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void loadPrefs() {
-        sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
-        mineProb = Integer.parseInt(sharedPrefs.getString(getString(R.string.pref_mine_probability), "")) / 100f;
-        width = height = Integer.parseInt(sharedPrefs.getString(getString(R.string.pref_board_size), ""));
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        mineProb = Integer.parseInt(prefs.getString(getString(R.string.pref_mine_prob), "")) / 100f;
+        width = height = Integer.parseInt(prefs.getString(getString(R.string.pref_board_size), ""));
+        doPropagate = prefs.getBoolean(getString(R.string.pref_propagate_zeroes), false);
+        visualProp = prefs.getBoolean(getString(R.string.pref_visual_propagation), false);
+        liveNeighs = prefs.getBoolean(getString(R.string.pref_live_neighbour_count), false);
     }
 
     private void init() {
         ended = false;
-        findViewById(R.id.end).setVisibility(INVISIBLE);
+        binding.end.setVisibility(View.INVISIBLE);
         numCorrectFlags = numIncorrectFlags = numMines = 0;
-        board.removeAllViews();
+        binding.board.removeAllViews();
         for (int y = 0; y < height; ++y) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -113,7 +130,7 @@ public class MainActivity extends AppCompatActivity
                     }
                     tile.init();
                 }
-                if (new Random().nextDouble() < mineProb) {
+                if (random.nextDouble() < mineProb) {
                     numMines++;
                     tile.mine = true;
                 } else {
@@ -124,13 +141,12 @@ public class MainActivity extends AppCompatActivity
                 row.addView(tile, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT, 1));
             }
             row.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
-            row.setDividerDrawable(getResources().getDrawable(R.drawable.divider));
-            board.addView(row, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT, 1));
+            row.setDividerDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.divider, null));
+            binding.board.addView(row, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT, 1));
         }
-        board.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
-        board.setDividerDrawable(getResources().getDrawable(R.drawable.divider));
-        TextView minecountTextView = findViewById(R.id.minecount);
-        minecountTextView.setText(getString(R.string.minecount, 0, numMines));
+        binding.board.setShowDividers(LinearLayout.SHOW_DIVIDER_MIDDLE);
+        binding.board.setDividerDrawable(ResourcesCompat.getDrawable(getResources(), R.drawable.divider, null));
+        binding.minecount.setText(getString(R.string.minecount, 0, numMines));
     }
 
     private int coordsToId(int x, int y) {
@@ -155,98 +171,78 @@ public class MainActivity extends AppCompatActivity
     }
 
     private int getNeighbourMineCount(int id) {
-        int neighbourMineCount = 0;
-        for (int neighbourId : getNeighbours(id)) {
-            if (tiles.get(neighbourId).mine) {
-                ++neighbourMineCount;
-            }
-        }
-        return neighbourMineCount;
+        return (int)getNeighbours(id).stream().filter(i -> tiles.get(i).mine).count();
     }
 
     private int getNeighbourMarkCount(int id) {
-        int neighbourMarkCount = 0;
-        for (int neighbourId : getNeighbours(id)) {
-            if (tiles.get(neighbourId).marked) {
-                ++neighbourMarkCount;
-            }
-        }
-        return neighbourMarkCount;
+        return (int)getNeighbours(id).stream().filter(i -> tiles.get(i).marked).count();
     }
 
     public int reveal(Tile tile, boolean propagate) {
-        tile.setBackgroundColor(Color.LTGRAY);
+        int mode = this.getResources().getConfiguration().uiMode;
+        if ((mode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES)
+            tile.setBackgroundColor(Color.DKGRAY);
+        else
+            tile.setBackgroundColor(Color.LTGRAY);
         tile.revealed = true;
         int neighbours = getNeighbourMineCount(tile.id);
         if (neighbours != 0) {
-            if (sharedPrefs.getBoolean(getString(R.string.pref_live_neighbour_count), false)) {
+            if (liveNeighs) {
                 neighbours -= getNeighbourMarkCount(tile.id);
             }
             tile.setText(String.valueOf(neighbours));
         }
-        if (propagate && neighbours == 0 && sharedPrefs.getBoolean(getString(R.string.pref_propagate_zeroes), false)) {
-            new propagateZeroesTask().execute(tile.id);
+        if (propagate && neighbours == 0 && doPropagate) {
+            propagateZeroes(tile.id);
         }
         return neighbours;
     }
 
-    private class propagateZeroesTask extends AsyncTask<Integer, Void, Boolean> {
-        Set<Integer> nextPropagation;
-        Set<Integer> toReveal;
+    private void propagateZeroes(Integer... ids) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler handler = new Handler(Looper.getMainLooper());
 
-        @Override
-        protected Boolean doInBackground(Integer... ids) {
-            nextPropagation = new HashSet<>(Arrays.asList(ids));
-            Set <Integer> nextReveal = new HashSet<>();
+        executor.execute(() -> {
+            Set<Integer> nextPropagation = new HashSet<>(Arrays.asList(ids));
             do {
+                Set<Integer> toReveal = new HashSet<>();
                 Set<Integer> propagateNow = new HashSet<>(nextPropagation);
                 nextPropagation.clear();
-                for (int propageteId : propagateNow) {
-                    for (int revealId : getNeighbours(propageteId)) {
+                for (int propagateId : propagateNow) {
+                    for (int revealId : getNeighbours(propagateId)) {
                         Tile tile = tiles.get(revealId);
                         if (!(tile.marked || tile.revealed)) {
                             if (tile.mine) {
-                                return true;
+                                handler.post(this::lose);
+                                return;
                             }
-                            nextReveal.add(revealId);
+                            toReveal.add(revealId);
                             if (getNeighbourMineCount(revealId) == 0) {
                                 nextPropagation.add(revealId);
                             }
                         }
                     }
                 }
-                toReveal = new HashSet<>(nextReveal);
-                nextReveal.clear();
-                publishProgress();
-                if (sharedPrefs.getBoolean(getString(R.string.pref_visual_propagation), false)) {
+                handler.post(() -> {
+                    for (int revealId : toReveal) {
+                        reveal(tiles.get(revealId), false);
+                    }
+                });
+                if (visualProp) {
                     try {
                         Thread.sleep(propagateDelay);
-                    } catch (InterruptedException ignore) {}
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException("Uncaught", e);
+                    }
                 }
             } while (!nextPropagation.isEmpty());
-            return false;
-        }
-
-        @Override
-        protected void onPostExecute(Boolean lost) {
-            if (lost) {
-                lose();
-            }
-        }
-
-        @Override
-        protected void onProgressUpdate(Void... values) {
-            for (int revealId : toReveal) {
-                reveal(tiles.get(revealId), false);
-            }
-        }
+        });
     }
 
     private void win() {
         ended = true;
-        TextView endtext = findViewById(R.id.end);
-        endtext.setText(R.string.win);
-        endtext.setVisibility(VISIBLE);
+        binding.end.setText(R.string.win);
+        binding.end.setVisibility(VISIBLE);
         for (Tile tile : tiles) {
             if (tile.mine) {
                 tile.setText(R.string.foundmine);
@@ -256,15 +252,13 @@ public class MainActivity extends AppCompatActivity
 
     private void lose() {
         ended = true;
-        TextView minecount = findViewById(R.id.minecount);
-        minecount.setText(getString(R.string.minecount, numCorrectFlags, numMines));
+        binding.minecount.setText(getString(R.string.minecount, numCorrectFlags, numMines));
         int numExplosions = minBombVibrates + ((maxBombVibrates - minBombVibrates) * (numMines - numCorrectFlags) / numMines);
         long[] vibratePattern = new long[numExplosions * 2 - 1];
         Arrays.fill(vibratePattern, vibrateBomb);
         vibrator.vibrate(vibratePattern, -1);
-        TextView endtext = findViewById(R.id.end);
-        endtext.setText(R.string.lose);
-        endtext.setVisibility(VISIBLE);
+        binding.end.setText(R.string.lose);
+        binding.end.setVisibility(VISIBLE);
         for (Tile tile : tiles) {
             if (tile.mine) {
                 if (tile.marked) {
@@ -313,7 +307,7 @@ public class MainActivity extends AppCompatActivity
                 ++numIncorrectFlags;
             }
         }
-        if (sharedPrefs.getBoolean(getString(R.string.pref_live_neighbour_count), false)) {
+        if (liveNeighs) {
             Set<Integer> toPropagate = new HashSet<>();
             for (int neighbourId : getNeighbours(tile.id)) {
                 if (tiles.get(neighbourId).revealed) {
@@ -322,10 +316,9 @@ public class MainActivity extends AppCompatActivity
                     }
                 }
             }
-            new propagateZeroesTask().execute(toPropagate.toArray(new Integer[0]));
+            propagateZeroes(toPropagate.toArray(new Integer[0]));
         }
-        TextView minecount = findViewById(R.id.minecount);
-        minecount.setText(getString(R.string.minecount, numCorrectFlags + numIncorrectFlags, numMines));
+        binding.minecount.setText(getString(R.string.minecount, numCorrectFlags + numIncorrectFlags, numMines));
         if (numCorrectFlags == numMines && numIncorrectFlags == 0) {
             win();
         }
