@@ -4,14 +4,14 @@ plugins {
 
 android {
     namespace = "hu.desnull.baltazar.minesweeper"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "hu.desnull.baltazar.minesweeper"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 8
-        versionName = "3.0"
+        targetSdk = 35
+        versionCode = 9
+        versionName = "3.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
